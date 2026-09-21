@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cross-origin cookie test</title>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem}li{margin:.4rem 0}.pass{color:#0a7a2f}.fail{color:#b00020}</style>
+</head>
+<body>
+<h1>Cross-origin session cookie test</h1>
+<p>API: <code id="api"></code></p>
+<ol id="out"><li>running…</li></ol>
+<script>
+const API = 'https://app-production-7910.up.railway.app';
+document.getElementById('api').textContent = API;
+const out = document.getElementById('out');
+out.innerHTML = '';
+function log(name, ok, detail) {
+  const li = document.createElement('li');
+  li.className = ok ? 'pass' : 'fail';
+  li.textContent = (ok ? 'PASS' : 'FAIL') + ' — ' + name + (detail ? ' — ' + detail : '');
+  out.appendChild(li);
+  console.log(li.textContent);
+}
+async function req(path, opts) {
+  const r = await fetch(API + path, Object.assign({ credentials: 'include',
+    headers: { 'Content-Type': 'application/json' } }, opts || {}));
+  let body = null;
+  try { body = await r.json(); } catch (e) {}
+  return { status: r.status, body };
+}
+const rnd = Math.random().toString(36).slice(2, 10);
+const username = 'ctest-' + rnd;
+const password = 'Pw-' + rnd + rnd + '!';
+(async function run() {
+  try {
+    let r = await req('/api/auth/signup', { method: 'POST',
+      body: JSON.stringify({ username, password, email: username + '@example.com' }) });
+    log('signup ' + username, r.status === 200 || r.status === 201, 'http ' + r.status);
+    r = await req('/api/auth/me');
+    const me1 = r.body && r.body.user && r.body.user.username === username;
+    log('session cookie sent back after signup (GET /me)', !!me1,
+      'http ' + r.status + ' user=' + (r.body && r.body.user && r.body.user.username));
+    r = await req('/api/auth/logout', { method: 'POST', body: '{}' });
+    log('logout', r.status === 200, 'http ' + r.status);
+    r = await req('/api/auth/me');
+    const me2 = r.body && r.body.user;
+    log('logged out (GET /me has no user)', !me2, 'http ' + r.status);
+    r = await req('/api/auth/login', { method: 'POST',
+      body: JSON.stringify({ username, password }) });
+    log('login again', r.status === 200, 'http ' + r.status);
+    r = await req('/api/auth/me');
+    const me3 = r.body && r.body.user && r.body.user.username === username;
+    log('session cookie sent back after login (GET /me)', !!me3,
+      'http ' + r.status + ' user=' + (r.body && r.body.user && r.body.user.username));
+    log('TEST COMPLETE', true, 'username=' + username);
+  } catch (e) {
+    log('exception', false, String(e && e.message || e));
+  }
+})();
+</script>
+</body>
+</html>
