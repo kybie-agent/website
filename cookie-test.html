@@ -30,7 +30,7 @@ async function req(path, opts) {
   return { status: r.status, body };
 }
 const rnd = Math.random().toString(36).slice(2, 10);
-const username = 'ctest-' + rnd;
+const username = 'ctest_' + rnd;
 const password = 'Pw-' + rnd + rnd + '!';
 (async function run() {
   try {
